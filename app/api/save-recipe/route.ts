@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
@@ -9,8 +9,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({ where: { clerkId } });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    let user = await prisma.user.findUnique({ where: { clerkId } });
+    if (!user) {
+      const clerkUser = await currentUser();
+      if (clerkUser) {
+        const email = clerkUser.emailAddresses[0]?.emailAddress || "";
+        const name = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || null;
+        const imageUrl = clerkUser.imageUrl || null;
+        user = await prisma.user.create({
+          data: {
+            clerkId,
+            email,
+            name,
+            imageUrl,
+            credits: 10,
+          },
+        });
+      } else {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+    }
 
     const { recipeId } = await req.json();
     if (!recipeId) {
@@ -43,8 +61,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({ where: { clerkId } });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    let user = await prisma.user.findUnique({ where: { clerkId } });
+    if (!user) {
+      const clerkUser = await currentUser();
+      if (clerkUser) {
+        const email = clerkUser.emailAddresses[0]?.emailAddress || "";
+        const name = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || null;
+        const imageUrl = clerkUser.imageUrl || null;
+        user = await prisma.user.create({
+          data: {
+            clerkId,
+            email,
+            name,
+            imageUrl,
+            credits: 10,
+          },
+        });
+      } else {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+    }
 
     const saved = await prisma.savedRecipe.findMany({
       where: { userId: user.id },

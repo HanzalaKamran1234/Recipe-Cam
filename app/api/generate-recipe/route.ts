@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import {
   generateRecipeFromImage,
   generateRecipeFromText,
@@ -28,7 +28,24 @@ export async function POST(req: NextRequest) {
     if (clerkId) {
       user = await prisma.user.findUnique({ where: { clerkId } });
       if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
+        // Fallback: Sync user dynamically if not found in database yet
+        const clerkUser = await currentUser();
+        if (clerkUser) {
+          const email = clerkUser.emailAddresses[0]?.emailAddress || "";
+          const name = `${clerkUser.firstName || ""} ${clerkUser.lastName || ""}`.trim() || null;
+          const imageUrl = clerkUser.imageUrl || null;
+          user = await prisma.user.create({
+            data: {
+              clerkId,
+              email,
+              name,
+              imageUrl,
+              credits: 10,
+            },
+          });
+        } else {
+          return NextResponse.json({ error: "User not found" }, { status: 404 });
+        }
       }
       if (user.credits <= 0) {
         return NextResponse.json(
