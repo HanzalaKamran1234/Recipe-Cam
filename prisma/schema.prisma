@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  clerkId      String        @unique
+  email        String        @unique
+  name         String?
+  imageUrl     String?
+  credits      Int           @default(10)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  recipes      Recipe[]
+  savedRecipes SavedRecipe[]
+  uploads      Upload[]
+
+  @@map("users")
+}
+
+model Recipe {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  description  String        @db.Text
+  cuisine      String
+  difficulty   String
+  prepTime     Int
+  cookTime     Int
+  servings     Int
+  calories     Int
+  ingredients  Json
+  instructions Json
+  nutrition    Json
+  tips         Json
+  tags         String[]      @default([])
+  imageUrl     String?
+  sourceType   String        @default("text") // "image" | "voice" | "text"
+  prompt       String?       @db.Text
+  isPublic     Boolean       @default(false)
+  savedBy      SavedRecipe[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("recipes")
+}
+
+model SavedRecipe {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, recipeId])
+  @@map("saved_recipes")
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  url       String
+  size      Int
+  mimeType  String
+  createdAt DateTime @default(now())
+
+  @@map("uploads")
+}
